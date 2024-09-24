@@ -10,7 +10,6 @@ import (
 
 	"github.com/WatShitTooYaa/monggostore/mongostore"
 
-	// "github.com/TykTechnologies/mongostore"
 	gcon "github.com/gorilla/context"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -61,7 +60,6 @@ func getCookie(c echo.Context, name string) (M, error) {
 }
 
 func deleteCookie(c echo.Context, name string) {
-	// encoded, err := sc.Encode(name, data)
 
 	cookie := &http.Cookie{
 		Name:    name,
@@ -72,12 +70,9 @@ func deleteCookie(c echo.Context, name string) {
 
 	http.SetCookie(c.Response(), cookie)
 
-	// return nil
 }
 
 func newMongoStore(ctx context.Context, disconMongo chan bool) *mongostore.MongoStore {
-	// db := "mongodb://localhost:27107"
-	// mgoSession, err := mgo.Dial("mongodb://localhost:27017/test")
 
 	client, err := mongo.Connect(options.Client().ApplyURI("mongodb://localhost:27017"))
 	go func() {
@@ -131,6 +126,7 @@ func main() {
 
 	e.Use(echo.WrapMiddleware(gcon.ClearHandler))
 
+	//not included in test store session
 	e.GET("/home", func(c echo.Context) error {
 		dataId, err := getCookie(c, "id")
 		if err != nil && err != http.ErrNoCookie && err != securecookie.ErrMacInvalid {
@@ -148,6 +144,7 @@ func main() {
 		return c.JSON(http.StatusOK, data)
 	})
 
+	//not included in test store session
 	e.GET("/index", func(c echo.Context) error {
 		data, err := getCookie(c, CookieName)
 		if err != nil && err != http.ErrNoCookie && err != securecookie.ErrMacInvalid {
@@ -166,21 +163,15 @@ func main() {
 		return c.JSON(http.StatusOK, data)
 	})
 
+	//not included in test store session
 	e.GET("/del", func(c echo.Context) error {
-		// data, err := getCookie(c, CookieName)
-		// if err != nil {
-		// 	return err
-		// }
-		// if data == nil {
-		// 	return c.JSON(http.StatusOK, "cookie is not setted yet")
-		// }
-
 		deleteCookie(c, "id")
 		deleteCookie(c, CookieName)
 
 		return c.JSON(http.StatusOK, "success delete cookie")
 	})
 
+	//storing session here
 	e.GET("/set", func(c echo.Context) error {
 		session, err := store.Get(c.Request(), SESSION_ID)
 		if err != nil {

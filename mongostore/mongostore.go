@@ -30,10 +30,6 @@ type MongoStore struct {
 
 // Session object store in MongoDB
 type Session struct {
-	// Id       bson.ObjectId `bson:"_id,omitempty"`
-	// Id       primitive.ObjectID `bson:"_id,omitempty"`
-	// Data     string
-	// Modified time.Time
 	ID         primitive.ObjectID `bson:"_id,omitempty"`
 	Data       string             `bson:"data"`
 	ModifiedAt time.Time          `bson:"modifiedAt"`
@@ -110,26 +106,17 @@ func (s *MongoStore) New(r *http.Request, name string) (*sessions.Session, error
 // Save adds a single session to the response.
 func (s *MongoStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
 	if session.Options.MaxAge < 0 {
-		// Log awal untuk menandakan bahwa penghapusan akan terjadi
-		fmt.Println("Session max age < 0, performing deletion...")
 
-		// Log error yang lebih rinci jika terjadi masalah
 		if err := s.erase(r.Context(), session); err != nil {
-			fmt.Println("Error during session erase: ", err)
 			return fmt.Errorf("failed to erase session: %v", err)
 		}
 
-		// Tambahkan log untuk memeriksa status cookie
-		fmt.Println("Setting cookie with empty value and MaxAge < 0")
 		http.SetCookie(w, sessions.NewCookie(session.Name(), "", session.Options))
 
-		// Return nil menunjukkan bahwa proses berhasil
-		fmt.Println("Cookie deleted successfully")
 		return nil
 	}
 	if session.ID == "" {
 		session.ID = primitive.NewObjectID().Hex()
-		fmt.Println("session id :", session.ID)
 	}
 	if err := s.save(r.Context(), session); err != nil {
 		return err
@@ -151,7 +138,6 @@ func (s *MongoStore) load(ctx context.Context, session *sessions.Session) error 
 	}
 
 	if err := s.collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&doc); err != nil {
-		fmt.Println("ora nemu, session ID :", session.ID)
 		return err
 	}
 	if err := securecookie.DecodeMulti(session.Name(), doc.Data, &session.Values, s.Codecs...); err != nil {
@@ -167,14 +153,10 @@ func (s *MongoStore) save(ctx context.Context, session *sessions.Session) error 
 		return err
 	}
 
-	fmt.Println("objID start :", objID)
-
 	encoded, err := securecookie.EncodeMulti(session.Name(), session.Values, s.Codecs...)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("encoded : ", encoded)
 
 	doc := Session{
 		ID:         objID,
@@ -184,33 +166,24 @@ func (s *MongoStore) save(ctx context.Context, session *sessions.Session) error 
 
 	opts := options.Update().SetUpsert(true)
 	update := bson.D{{Key: "$set", Value: &doc}}
-	fmt.Println("objID after update :", objID)
 	if _, err := s.collection.UpdateOne(ctx, bson.M{"_id": objID}, update, opts); err != nil {
 		return err
 	}
-	// if _, err := s.collection.UpdateOne(ctx, bson.M{"_id": objID}, update, opts); err != nil {
-	// 	return err
-	// }
 	return nil
 }
 
 // erase deletes a session document from the MongoDB collection.
 func (s *MongoStore) erase(ctx context.Context, session *sessions.Session) error {
 	objID, err := primitive.ObjectIDFromHex(session.ID)
-	fmt.Println("obj id erase : ", objID)
+
 	if err != nil {
 		return fmt.Errorf("invalid objectid: %v", err)
 	}
 
-	// err = s.collection.FindOneAndDelete(ctx, bson.M{"_id": objID}).Err()
-	// if err != nil {
-	// 	return err
-	// }
-	res, err := s.collection.DeleteOne(ctx, bson.M{"_id": objID})
+	_, err = s.collection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
 		return fmt.Errorf("deleting data : %v", err)
 	}
-	fmt.Println("res :", res)
 
 	return nil
 }
